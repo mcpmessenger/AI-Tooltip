@@ -21,10 +21,18 @@ type PreviewCacheEntry = {
   timestamp: number;
 };
 
+type SummaryCacheEntry = {
+  summary: string;
+  timestamp: number;
+};
+
 const TOOLTIP_ID = 'ai-tooltip-summary';
 const HOVER_DELAY = 500; // Delay in ms before showing tooltip
 const AUTO_HIDE_DELAY = 5000;
 const PREVIEW_CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+const SUMMARY_CACHE_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+const MIN_TEXT_LENGTH = 50; // Minimum text length to trigger summarization
+const MAX_TEXT_LENGTH = 2000; // Maximum text length to summarize
 
 let currentTooltip: HTMLDivElement | null = null;
 let hoverTimeout: number | null = null;
@@ -83,6 +91,108 @@ function getElementLabel(element: HTMLElement): string | null {
     return null;
   }
   return label.trim().replace(/\s+/g, ' ');
+}
+
+function extractTextFromElement(element: HTMLElement): string | null {
+  // Skip interactive elements (they have their own handlers)
+  if (
+    element instanceof HTMLAnchorElement ||
+    element instanceof HTMLButtonElement ||
+    element.getAttribute('role') === 'button' ||
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLTextAreaElement ||
+    element instanceof HTMLSelectElement
+  ) {
+    return null;
+  }
+
+  // Focus on text containers: paragraphs, headings, list items, blockquotes, etc.
+  const textContainers = [
+    'P',
+    'H1',
+    'H2',
+    'H3',
+    'H4',
+    'H5',
+    'H6',
+    'LI',
+    'BLOCKQUOTE',
+    'DD',
+    'DT',
+    'TD',
+    'TH',
+    'SPAN',
+    'DIV',
+    'ARTICLE',
+    'SECTION'
+  ];
+
+  if (!textContainers.includes(element.tagName)) {
+    return null;
+  }
+
+  // Get text content, excluding nested interactive elements
+  const text = element.textContent?.trim() || '';
+  if (text.length < MIN_TEXT_LENGTH) {
+    return null;
+  }
+
+  // Truncate if too long
+  return text.length > MAX_TEXT_LENGTH ? text.slice(0, MAX_TEXT_LENGTH) + '...' : text;
+}
+
+function getSummaryCacheKey(text: string): string {
+  const pageId = `${window.location.origin}${window.location.pathname}`;
+  const textHash = text.slice(0, 100).replace(/\s+/g, ' ').trim();
+  const encoded = encodeURIComponent(textHash);
+  return `summary::${pageId}::${encoded}`;
+}
+
+function getCachedSummary(summaryKey: string): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.storage.local.get([summaryKey], (items) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        const entry = items[summaryKey] as SummaryCacheEntry | undefined;
+        if (!entry) {
+          resolve(null);
+          return;
+        }
+        const isExpired = Date.now() - entry.timestamp > SUMMARY_CACHE_DURATION_MS;
+        if (isExpired) {
+          chrome.storage.local.remove(summaryKey);
+          resolve(null);
+          return;
+        }
+        resolve(entry.summary);
+      });
+    } catch (error) {
+      reject(error instanceof Error ? error : new Error('Failed to access storage.'));
+    }
+  });
+}
+
+function cacheSummary(summaryKey: string, summary: string): Promise<void> {
+  const entry: SummaryCacheEntry = {
+    summary,
+    timestamp: Date.now()
+  };
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.storage.local.set({ [summaryKey]: entry }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve();
+      });
+    } catch (error) {
+      reject(error instanceof Error ? error : new Error('Failed to write storage.'));
+    }
+  });
 }
 
 function getPreviewCacheKey(element: HTMLElement): string | null {
@@ -316,6 +426,93 @@ function schedulePreviewHover(target: HTMLElement, previewKey: string): void {
   }, HOVER_DELAY);
 }
 
+function scheduleTextHover(target: HTMLElement, text: string): void {
+  const summaryKey = getSummaryCacheKey(text);
+
+  hoverTimeout = window.setTimeout(() => {
+    showTooltip(target, '<p>Processing summary...</p><p>Loading...</p>', true);
+
+    void (async () => {
+      // Check cache first
+      let summary: string | null = null;
+      try {
+        summary = await getCachedSummary(summaryKey);
+      } catch (error) {
+        console.warn('Failed to read summary cache:', error);
+      }
+
+      if (!document.body.contains(target)) {
+        return;
+      }
+
+      // If cached, show immediately
+      if (summary) {
+        showTooltip(target, `<p><strong>Summary:</strong></p><p>${escapeHtml(summary)}</p>`);
+        return;
+      }
+
+      // Otherwise, request from background
+      chrome.runtime.sendMessage(
+        {
+          action: 'summarizeText',
+          data: { text }
+        },
+        async (response?: TooltipResponse) => {
+          if (!document.body.contains(target)) {
+            return;
+          }
+
+          if (chrome.runtime.lastError) {
+            const errorMessage = chrome.runtime.lastError.message || 'Unknown error occurred.';
+            showTooltip(
+              target,
+              `<p><strong>Error:</strong></p><p>${escapeHtml(errorMessage)}</p>`
+            );
+            return;
+          }
+
+          const usageFooter = buildUsageFooter(response?.usageInfo);
+
+          if (response?.success && response.result) {
+            // Cache the summary
+            try {
+              await cacheSummary(summaryKey, response.result);
+            } catch (error) {
+              console.warn('Failed to cache summary:', error);
+            }
+
+            showTooltip(
+              target,
+              `<p><strong>Summary:</strong></p><p>${escapeHtml(response.result)}</p>${usageFooter}`
+            );
+            return;
+          }
+
+          if (response?.error) {
+            const upgradeHint =
+              response.errorCode === 'FREE_TIER_EXHAUSTED'
+                ? `<p><em>Limit reached. Open the extension popup to upgrade.</em></p>`
+                : '';
+            showTooltip(
+              target,
+              `<p><strong>Error:</strong></p><p>${escapeHtml(response.error)}</p>${upgradeHint}${usageFooter}`
+            );
+            return;
+          }
+
+          showTooltip(
+            target,
+            `<p><strong>Error:</strong></p><p>Failed to get response from background worker.</p>${usageFooter}`
+          );
+        }
+      );
+    })().catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : 'Unexpected error occurred.';
+      showTooltip(target, `<p><strong>Error:</strong></p><p>${escapeHtml(message)}</p>`);
+    });
+  }, HOVER_DELAY);
+}
+
 function handleHover(event: MouseEvent): void {
   const { target } = event;
   if (!(target instanceof HTMLElement)) {
@@ -327,14 +524,23 @@ function handleHover(event: MouseEvent): void {
     hoverTimeout = null;
   }
 
+  // Priority 1: Images -> OCR
   if (target instanceof HTMLImageElement && target.src) {
     scheduleImageHover(target);
     return;
   }
 
+  // Priority 2: Buttons/Links -> Preview
   const previewKey = getPreviewCacheKey(target);
   if (previewKey) {
     schedulePreviewHover(target, previewKey);
+    return;
+  }
+
+  // Priority 3: Text elements -> Summarization
+  const text = extractTextFromElement(target);
+  if (text) {
+    scheduleTextHover(target, text);
   }
 }
 
