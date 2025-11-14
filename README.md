@@ -4,9 +4,10 @@ This project injects intelligent tooltips into any page, providing OCR summaries
 
 ## Getting Started
 
-- Clone the repo and install as an unpacked Chrome extension from the `ai-tooltip-extension` directory.
+- Clone the repo, `cd ai-tooltip-extension`, and run `npm install`.
 - Copy `config.sample.js` to `config.js` (gitignored) and fill in your test OpenAI key and Google OAuth client ID.
-- Reload the extension and run the image-hover and context-menu summarize flows as a smoke test.
+- Run `npm run build`, then load the unpacked extension from the generated `dist/` directory.
+- Trigger the image-hover OCR and context-menu summarization flows as a smoke test.
 
 ## Planned Upgrades
 

@@ -2,6 +2,7 @@ import { cp, mkdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import esbuild from 'esbuild';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -23,6 +24,19 @@ async function copyEntry(entry) {
   await cp(source, destination, { recursive: true });
 }
 
+async function buildScripts() {
+  console.log('[build] Bundling TypeScript sources...');
+  await esbuild.build({
+    entryPoints: [resolve(rootDir, 'src/content.ts')],
+    bundle: false,
+    outfile: resolve(distDir, 'content.js'),
+    target: 'es2021',
+    platform: 'browser',
+    format: 'iife',
+    sourcemap: false
+  });
+}
+
 async function main() {
   console.log('[build] Preparing dist directory...');
   await ensureDist();
@@ -33,7 +47,6 @@ async function main() {
     'config.sample.js',
     'config.js',
     'content.css',
-    'content.js',
     'icons',
     'lib',
     'offscreen.html',
@@ -46,7 +59,8 @@ async function main() {
     await copyEntry(entry);
   }
 
-  console.log('[build] Static assets copied. TypeScript bundling to be added in Phase 2.');
+  await buildScripts();
+  console.log('[build] Build finished.');
 }
 
 main().catch((error) => {
