@@ -112,24 +112,28 @@ function getPreviewCacheKey(element: HTMLElement): string | null {
 
 function getCachedPreview(previewKey: string): Promise<string | null> {
   return new Promise((resolve, reject) => {
-    chrome.storage.local.get([previewKey], (items) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-        return;
-      }
-      const entry = items[previewKey] as PreviewCacheEntry | undefined;
-      if (!entry) {
-        resolve(null);
-        return;
-      }
-      const isExpired = Date.now() - entry.timestamp > PREVIEW_CACHE_DURATION_MS;
-      if (isExpired) {
-        chrome.storage.local.remove(previewKey);
-        resolve(null);
-        return;
-      }
-      resolve(entry.dataUrl);
-    });
+    try {
+      chrome.storage.local.get([previewKey], (items) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        const entry = items[previewKey] as PreviewCacheEntry | undefined;
+        if (!entry) {
+          resolve(null);
+          return;
+        }
+        const isExpired = Date.now() - entry.timestamp > PREVIEW_CACHE_DURATION_MS;
+        if (isExpired) {
+          chrome.storage.local.remove(previewKey);
+          resolve(null);
+          return;
+        }
+        resolve(entry.dataUrl);
+      });
+    } catch (error) {
+      reject(error instanceof Error ? error : new Error('Failed to access storage.'));
+    }
   });
 }
 
@@ -139,13 +143,17 @@ function cachePreview(previewKey: string, dataUrl: string): Promise<void> {
     timestamp: Date.now()
   };
   return new Promise((resolve, reject) => {
-    chrome.storage.local.set({ [previewKey]: entry }, () => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-        return;
-      }
-      resolve();
-    });
+    try {
+      chrome.storage.local.set({ [previewKey]: entry }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve();
+      });
+    } catch (error) {
+      reject(error instanceof Error ? error : new Error('Failed to write storage.'));
+    }
   });
 }
 
