@@ -237,6 +237,22 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 // Message handling from content scripts and popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'capturePreview') {
+    const windowId =
+      sender.tab && typeof sender.tab.windowId === 'number' ? sender.tab.windowId : undefined;
+    chrome.tabs.captureVisibleTab(windowId, { format: 'png' }, (dataUrl) => {
+      if (chrome.runtime.lastError || !dataUrl) {
+        const errorMessage = chrome.runtime.lastError
+          ? chrome.runtime.lastError.message
+          : 'Failed to capture preview.';
+        sendResponse({ success: false, error: errorMessage });
+        return;
+      }
+      sendResponse({ success: true, dataUrl });
+    });
+    return true;
+  }
+
   if (message.action === 'summarizeText' || message.action === 'ocrImage') {
     console.log('Message received in background worker:', message.action);
     handleRequest(message)
