@@ -16,19 +16,10 @@
     },
     "default_title": "AI-Powered Tooltip Settings"
   },
-  "permissions": [
-    "activeTab",
-    "storage",
-    "offscreen",
-    "contextMenus",
-    "identity"
-  ],
+  "permissions": ["activeTab", "storage", "offscreen", "contextMenus", "identity"],
   "oauth2": {
     "client_id": "762055088800-nu0g10u9607j0g01vc8f0qc2qln2peao.apps.googleusercontent.com",
-    "scopes": [
-      "profile",
-      "email"
-    ]
+    "scopes": ["profile", "email"]
   },
   "background": {
     "service_worker": "background.js"

@@ -22,4 +22,3 @@ if (typeof self !== 'undefined') {
 if (typeof window !== 'undefined') {
   window.CONFIG = CONFIG;
 }
-

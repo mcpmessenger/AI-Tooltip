@@ -51,7 +51,7 @@ async function callOpenAISummarize({ apiKey, text }) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
+      Authorization: `Bearer ${apiKey}`
     },
     body: JSON.stringify({
       model: OPENAI_SUMMARY_MODEL,
@@ -62,7 +62,9 @@ async function callOpenAISummarize({ apiKey, text }) {
 
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '');
-    throw new Error(`OpenAI request failed (${response.status}): ${errorBody || response.statusText}`);
+    throw new Error(
+      `OpenAI request failed (${response.status}): ${errorBody || response.statusText}`
+    );
   }
 
   const payload = await response.json();
@@ -114,13 +116,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === 'processInOffscreen') {
     console.log('Offscreen received task:', message.type);
-    
+
     // Process the request and send the response back
     processLLM(message.type, message.data)
-      .then(response => {
+      .then((response) => {
         sendResponse(response);
       })
-      .catch(error => {
+      .catch((error) => {
         sendResponse({ success: false, error: error.message });
       });
 

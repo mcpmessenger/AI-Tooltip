@@ -11,11 +11,9 @@ try {
 const FREE_TIER_LIMIT = typeof CONFIG.FREE_TIER_LIMIT === 'number' ? CONFIG.FREE_TIER_LIMIT : 100;
 const DEFAULT_FREE_API_KEY = CONFIG.DEFAULT_FREE_API_KEY || '';
 
-const storageSyncGet = (keys) =>
-  new Promise((resolve) => chrome.storage.sync.get(keys, resolve));
+const storageSyncGet = (keys) => new Promise((resolve) => chrome.storage.sync.get(keys, resolve));
 
-const storageSyncSet = (items) =>
-  new Promise((resolve) => chrome.storage.sync.set(items, resolve));
+const storageSyncSet = (items) => new Promise((resolve) => chrome.storage.sync.set(items, resolve));
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -147,7 +145,8 @@ async function resolveUsageAndApiKey(action) {
 
   if (action === 'summarizeText' && !DEFAULT_FREE_API_KEY) {
     return {
-      error: 'Free tier unavailable. Configure a developer-managed API key locally to enable the first 100 tooltips.',
+      error:
+        'Free tier unavailable. Configure a developer-managed API key locally to enable the first 100 tooltips.',
       requiresUpgrade: true,
       usageInfo: usageInfoBase
     };
@@ -256,18 +255,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Placeholder for context menu creation (for "Summarize with AI" right-click)
 chrome.contextMenus.create({
-  id: "summarizeWithAI",
-  title: "Summarize with AI",
-  contexts: ["selection"]
+  id: 'summarizeWithAI',
+  title: 'Summarize with AI',
+  contexts: ['selection']
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === "summarizeWithAI" && info.selectionText) {
+  if (info.menuItemId === 'summarizeWithAI' && info.selectionText) {
     // Send the selected text to the content script to display the "Processing" tooltip
     chrome.tabs.sendMessage(tab.id, {
-      action: "showSummaryTooltip",
+      action: 'showSummaryTooltip',
       text: info.selectionText,
-      source: "contextMenu"
+      source: 'contextMenu'
     });
   }
 });

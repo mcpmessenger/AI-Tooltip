@@ -1,61 +1,67 @@
 /* content.css - Final Tooltip Styling */
 
 .ai-tooltip {
-    position: absolute;
-    z-index: 2147483647; /* Max z-index to ensure it's on top */
-    padding: 10px 15px;
-    background-color: #fff;
-    color: #333;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    font-size: 13px;
-    line-height: 1.5;
-    max-width: 350px;
-    pointer-events: none; /* Allows clicks to pass through when not active */
-    opacity: 0;
-    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
-    transform: translateY(5px);
+  position: absolute;
+  z-index: 2147483647; /* Max z-index to ensure it's on top */
+  padding: 10px 15px;
+  background-color: #fff;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 350px;
+  pointer-events: none; /* Allows clicks to pass through when not active */
+  opacity: 0;
+  transition:
+    opacity 0.2s ease-in-out,
+    transform 0.2s ease-in-out;
+  transform: translateY(5px);
 }
 
 .ai-tooltip.visible {
-    opacity: 1;
-    transform: translateY(0);
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .ai-tooltip strong {
-    font-weight: 600;
-    color: #007bff; /* A nice blue for emphasis */
+  font-weight: 600;
+  color: #007bff; /* A nice blue for emphasis */
 }
 
 .ai-tooltip p {
-    margin: 0 0 5px 0;
+  margin: 0 0 5px 0;
 }
 
 .ai-tooltip p:last-child {
-    margin-bottom: 0;
+  margin-bottom: 0;
 }
 
 .ai-tooltip-footer {
-    font-size: 11px;
-    color: #777;
+  font-size: 11px;
+  color: #777;
 }
 
 /* Loading Indicator Style */
 .ai-tooltip .loading-spinner {
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #007bff;
-    border-radius: 50%;
-    width: 12px;
-    height: 12px;
-    animation: spin 1s linear infinite;
-    display: inline-block;
-    margin-left: 5px;
-    vertical-align: middle;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  width: 12px;
+  height: 12px;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  margin-left: 5px;
+  vertical-align: middle;
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
