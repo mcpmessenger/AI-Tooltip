@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Tooltip Settings</title>
+    <style>
+        body { width: 300px; font-family: Arial, sans-serif; padding: 10px; }
+        h3 { color: #333; }
+        p { font-size: 14px; color: #555; }
+    </style>
+</head>
+<body>
+    <h3>AI-Powered Tooltip Extension</h3>
+    <p>Jump in with 100 free AI tooltips powered by our shared key, then upgrade for unlimited usage.</p>
+    <div id="usage-section" style="background:#f5f7fb;padding:10px;border-radius:6px;margin-bottom:12px;">
+        <p style="margin:0 0 6px 0;"><strong>Free Tier Status:</strong> <span id="usage-count">Loading…</span></p>
+        <button id="upgrade-button" style="width:100%;padding:8px;margin-top:6px;">Sign in with Google to Upgrade ($3/mo)</button>
+    </div>
+    <h4>Bring Your Own API Key</h4>
+    <label for="api-key-input">API Key:</label>
+    <input type="password" id="api-key-input" style="width: 95%; margin-bottom: 10px;">
+    <button id="save-button" style="width: 100%; padding: 8px;">Save API Key</button>
+    <p id="status-message" style="font-size: 12px; margin-top: 10px;"></p>
+    <script src="config.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>

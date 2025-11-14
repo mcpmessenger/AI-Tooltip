@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "AI-Powered Tooltip",
+  "version": "1.0",
+  "description": "An AI-Powered Tooltip Chrome Extension for on-demand summaries, translations, and code explanations.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    },
+    "default_title": "AI-Powered Tooltip Settings"
+  },
+  "permissions": [
+    "activeTab",
+    "storage",
+    "offscreen",
+    "contextMenus",
+    "identity"
+  ],
+  "oauth2": {
+    "client_id": "762055088800-nu0g10u9607j0g01vc8f0qc2qln2peao.apps.googleusercontent.com",
+    "scopes": [
+      "profile",
+      "email"
+    ]
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
