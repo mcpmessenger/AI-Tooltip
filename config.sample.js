@@ -1,8 +1,9 @@
 const CONFIG = {
   /**
    * Total number of free tooltips a new user can trigger before being asked to upgrade.
+   * Set to 1000 for development and testing.
    */
-  FREE_TIER_LIMIT: 100,
+  FREE_TIER_LIMIT: 1000,
   /**
    * Developer-managed API key that will be used for the free tier.
    * DO NOT commit your real key. Copy this file to `config.js` and populate it locally.
