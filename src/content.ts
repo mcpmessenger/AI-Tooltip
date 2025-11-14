@@ -468,19 +468,16 @@ function schedulePreviewHover(target: HTMLElement, previewKey: string): void {
 
       // If we have a cached summary, show it immediately
       if (buttonSummary) {
-        const urlContent =
-          isLink && href ? `<p class="ai-tooltip-url">${escapeHtml(href)}</p>` : '';
-
         const dataUrl = await dataUrlPromise;
         if (dataUrl) {
           showTooltip(
             target,
-            `<div>${urlContent}<p><strong>What it does:</strong> ${escapeHtml(buttonSummary)}</p><img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" /></div>`
+            `<div><p><strong>What it does:</strong> ${escapeHtml(buttonSummary)}</p><img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" /></div>`
           );
         } else {
           showTooltip(
             target,
-            `<div>${urlContent}<p><strong>What it does:</strong> ${escapeHtml(buttonSummary)}</p></div>`
+            `<div><p><strong>What it does:</strong> ${escapeHtml(buttonSummary)}</p></div>`
           );
         }
         return;
@@ -500,20 +497,18 @@ function schedulePreviewHover(target: HTMLElement, previewKey: string): void {
           }
 
           const dataUrl = await dataUrlPromise;
-          const urlContent =
-            isLink && href ? `<p class="ai-tooltip-url">${escapeHtml(href)}</p>` : '';
 
           if (chrome.runtime.lastError) {
             const errorMessage = chrome.runtime.lastError.message || 'Unknown error occurred.';
             if (dataUrl) {
               showTooltip(
                 target,
-                `<div>${urlContent}<img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" /><p class="ai-tooltip-footer"><em>Error: ${escapeHtml(errorMessage)}</em></p></div>`
+                `<div><img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" /><p class="ai-tooltip-footer"><em>Error: ${escapeHtml(errorMessage)}</em></p></div>`
               );
             } else {
               showTooltip(
                 target,
-                `<div>${urlContent}<p class="ai-tooltip-footer"><em>Error: ${escapeHtml(errorMessage)}</em></p></div>`
+                `<div><p class="ai-tooltip-footer"><em>Error: ${escapeHtml(errorMessage)}</em></p></div>`
               );
             }
             return;
@@ -532,12 +527,12 @@ function schedulePreviewHover(target: HTMLElement, previewKey: string): void {
             if (dataUrl) {
               showTooltip(
                 target,
-                `<div>${urlContent}<p><strong>What it does:</strong> ${escapeHtml(response.result)}</p><img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" />${usageFooter}</div>`
+                `<div><p><strong>What it does:</strong> ${escapeHtml(response.result)}</p><img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" />${usageFooter}</div>`
               );
             } else {
               showTooltip(
                 target,
-                `<div>${urlContent}<p><strong>What it does:</strong> ${escapeHtml(response.result)}</p>${usageFooter}</div>`
+                `<div><p><strong>What it does:</strong> ${escapeHtml(response.result)}</p>${usageFooter}</div>`
               );
             }
             return;
@@ -551,12 +546,12 @@ function schedulePreviewHover(target: HTMLElement, previewKey: string): void {
             if (dataUrl) {
               showTooltip(
                 target,
-                `<div>${urlContent}<img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" /><p class="ai-tooltip-footer"><em>${escapeHtml(response.error)}</em>${upgradeHint}${usageFooter}</p></div>`
+                `<div><img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" /><p class="ai-tooltip-footer"><em>${escapeHtml(response.error)}</em>${upgradeHint}${usageFooter}</p></div>`
               );
             } else {
               showTooltip(
                 target,
-                `<div>${urlContent}<p class="ai-tooltip-footer"><em>${escapeHtml(response.error)}</em>${upgradeHint}${usageFooter}</p></div>`
+                `<div><p class="ai-tooltip-footer"><em>${escapeHtml(response.error)}</em>${upgradeHint}${usageFooter}</p></div>`
               );
             }
             return;
@@ -566,22 +561,21 @@ function schedulePreviewHover(target: HTMLElement, previewKey: string): void {
           if (dataUrl) {
             showTooltip(
               target,
-              `<div>${urlContent}<img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" /></div>`
+              `<div><img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" /></div>`
             );
           } else {
             showTooltip(
               target,
-              `<div>${urlContent}<p class="ai-tooltip-footer"><em>Summary unavailable. Click to interact.</em></p></div>`
+              `<div><p class="ai-tooltip-footer"><em>Summary unavailable. Click to interact.</em></p></div>`
             );
           }
         }
       );
     })().catch((error: unknown) => {
       const message = error instanceof Error ? error.message : 'Unexpected error occurred.';
-      const urlContent = isLink && href ? `<p class="ai-tooltip-url">${escapeHtml(href)}</p>` : '';
       showTooltip(
         target,
-        `<div>${urlContent}<p class="ai-tooltip-footer"><em>Error: ${escapeHtml(message)}</em></p></div>`
+        `<div><p class="ai-tooltip-footer"><em>Error: ${escapeHtml(message)}</em></p></div>`
       );
     });
   }, HOVER_DELAY);
