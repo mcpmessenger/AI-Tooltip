@@ -145,8 +145,7 @@ async function resolveUsageAndApiKey(action) {
 
   if (action === 'summarizeText' && !DEFAULT_FREE_API_KEY) {
     return {
-      error:
-        'Free tier unavailable. Configure a developer-managed API key locally to enable the first 100 tooltips.',
+      error: `Free tier unavailable. Configure a developer-managed API key locally to enable the first ${FREE_TIER_LIMIT} tooltips.`,
       requiresUpgrade: true,
       usageInfo: usageInfoBase
     };
