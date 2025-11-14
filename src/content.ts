@@ -148,6 +148,51 @@ function getSummaryCacheKey(text: string): string {
   return `summary::${pageId}::${encoded}`;
 }
 
+function getButtonSummaryCacheKey(
+  element: HTMLElement,
+  buttonText: string,
+  href: string | null
+): string {
+  const pageId = `${window.location.origin}${window.location.pathname}`;
+  const identifier = href || buttonText || element.id || element.getAttribute('aria-label') || '';
+  const hash = identifier.slice(0, 100).replace(/\s+/g, ' ').trim();
+  const encoded = encodeURIComponent(hash);
+  return `button-summary::${pageId}::${encoded}`;
+}
+
+function buildButtonContext(element: HTMLElement, buttonText: string, href: string | null): string {
+  const parts: string[] = [];
+
+  if (buttonText) {
+    parts.push(`Button text: "${buttonText}"`);
+  }
+
+  if (href) {
+    parts.push(`Link URL: ${href}`);
+  }
+
+  const ariaLabel = element.getAttribute('aria-label');
+  if (ariaLabel && ariaLabel !== buttonText) {
+    parts.push(`Aria label: "${ariaLabel}"`);
+  }
+
+  const title = element.getAttribute('title');
+  if (title && title !== buttonText) {
+    parts.push(`Title: "${title}"`);
+  }
+
+  // Get surrounding context (parent element text if available)
+  const parent = element.parentElement;
+  if (parent) {
+    const parentText = parent.textContent?.trim();
+    if (parentText && parentText.length < 200) {
+      parts.push(`Context: ${parentText}`);
+    }
+  }
+
+  return parts.join('\n');
+}
+
 function getCachedSummary(summaryKey: string): Promise<string | null> {
   return new Promise((resolve, reject) => {
     try {
@@ -398,9 +443,11 @@ function schedulePreviewHover(target: HTMLElement, previewKey: string): void {
   const isLink = target instanceof HTMLAnchorElement;
   const href = isLink ? (target as HTMLAnchorElement).href : null;
   const buttonText = target.textContent?.trim() || label || target.tagName.toLowerCase();
+  const buttonContext = buildButtonContext(target, buttonText, href);
+  const buttonSummaryKey = getButtonSummaryCacheKey(target, buttonText, href);
 
   hoverTimeout = window.setTimeout(() => {
-    // Show button info immediately while attempting capture
+    // Show button info immediately
     let tooltipContent = '';
     if (isLink && href) {
       tooltipContent = `<p><strong>Link:</strong> ${escapeHtml(buttonText)}</p><p class="ai-tooltip-url">${escapeHtml(href)}</p>`;
@@ -408,50 +455,148 @@ function schedulePreviewHover(target: HTMLElement, previewKey: string): void {
       tooltipContent = `<p><strong>Button:</strong> ${escapeHtml(buttonText)}</p>`;
     }
 
-    showTooltip(target, tooltipContent + '<p><em>Capturing preview...</em></p>', true);
+    showTooltip(target, tooltipContent + '<p><em>Analyzing...</em></p>', true);
 
     void (async () => {
-      const dataUrl = await getOrCapturePreview(previewKey);
+      // Try to get cached summary first
+      let buttonSummary: string | null = null;
+      try {
+        buttonSummary = await getCachedSummary(buttonSummaryKey);
+      } catch (error) {
+        console.warn('Failed to read button summary cache:', error);
+      }
+
+      // Try screenshot capture in parallel
+      const dataUrlPromise = getOrCapturePreview(previewKey).catch(() => null);
 
       if (!document.body.contains(target)) {
         return;
       }
 
-      if (dataUrl) {
-        const title = label ? escapeHtml(label) : buttonText;
-        showTooltip(
-          target,
-          `<div><p><strong>Preview:</strong> ${escapeHtml(title)}</p><img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview for ${escapeHtml(title)}" /></div>`
-        );
+      // If we have a cached summary, show it immediately
+      if (buttonSummary) {
+        const baseContent =
+          isLink && href
+            ? `<p><strong>Link:</strong> ${escapeHtml(buttonText)}</p><p class="ai-tooltip-url">${escapeHtml(href)}</p>`
+            : `<p><strong>Button:</strong> ${escapeHtml(buttonText)}</p>`;
+
+        const dataUrl = await dataUrlPromise;
+        if (dataUrl) {
+          showTooltip(
+            target,
+            `<div>${baseContent}<p><strong>What it does:</strong> ${escapeHtml(buttonSummary)}</p><img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" /></div>`
+          );
+        } else {
+          showTooltip(
+            target,
+            `<div>${baseContent}<p><strong>What it does:</strong> ${escapeHtml(buttonSummary)}</p></div>`
+          );
+        }
         return;
       }
 
-      // Fallback: show button/link info without screenshot
-      if (isLink && href) {
-        showTooltip(
-          target,
-          `<div><p><strong>Link:</strong> ${escapeHtml(buttonText)}</p><p class="ai-tooltip-url">${escapeHtml(href)}</p><p class="ai-tooltip-footer"><em>Screenshot capture unavailable. Click to navigate.</em></p></div>`
-        );
-      } else {
-        showTooltip(
-          target,
-          `<div><p><strong>Button:</strong> ${escapeHtml(buttonText)}</p><p class="ai-tooltip-footer"><em>Screenshot capture unavailable. Click to interact.</em></p></div>`
-        );
-      }
+      // Request AI summary
+      const summaryPrompt = `Based on this button/link information, explain what clicking it will do in one concise sentence:\n\n${buttonContext}`;
+
+      chrome.runtime.sendMessage(
+        {
+          action: 'summarizeText',
+          data: { text: summaryPrompt }
+        },
+        async (response?: TooltipResponse) => {
+          if (!document.body.contains(target)) {
+            return;
+          }
+
+          const dataUrl = await dataUrlPromise;
+          const baseContent =
+            isLink && href
+              ? `<p><strong>Link:</strong> ${escapeHtml(buttonText)}</p><p class="ai-tooltip-url">${escapeHtml(href)}</p>`
+              : `<p><strong>Button:</strong> ${escapeHtml(buttonText)}</p>`;
+
+          if (chrome.runtime.lastError) {
+            const errorMessage = chrome.runtime.lastError.message || 'Unknown error occurred.';
+            if (dataUrl) {
+              showTooltip(
+                target,
+                `<div>${baseContent}<img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" /><p class="ai-tooltip-footer"><em>Error: ${escapeHtml(errorMessage)}</em></p></div>`
+              );
+            } else {
+              showTooltip(
+                target,
+                `<div>${baseContent}<p class="ai-tooltip-footer"><em>Error: ${escapeHtml(errorMessage)}</em></p></div>`
+              );
+            }
+            return;
+          }
+
+          const usageFooter = buildUsageFooter(response?.usageInfo);
+
+          if (response?.success && response.result) {
+            // Cache the summary
+            try {
+              await cacheSummary(buttonSummaryKey, response.result);
+            } catch (error) {
+              console.warn('Failed to cache button summary:', error);
+            }
+
+            if (dataUrl) {
+              showTooltip(
+                target,
+                `<div>${baseContent}<p><strong>What it does:</strong> ${escapeHtml(response.result)}</p><img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" />${usageFooter}</div>`
+              );
+            } else {
+              showTooltip(
+                target,
+                `<div>${baseContent}<p><strong>What it does:</strong> ${escapeHtml(response.result)}</p>${usageFooter}</div>`
+              );
+            }
+            return;
+          }
+
+          if (response?.error) {
+            const upgradeHint =
+              response.errorCode === 'FREE_TIER_EXHAUSTED'
+                ? `<p><em>Limit reached. Open the extension popup to upgrade.</em></p>`
+                : '';
+            if (dataUrl) {
+              showTooltip(
+                target,
+                `<div>${baseContent}<img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" /><p class="ai-tooltip-footer"><em>${escapeHtml(response.error)}</em>${upgradeHint}${usageFooter}</p></div>`
+              );
+            } else {
+              showTooltip(
+                target,
+                `<div>${baseContent}<p class="ai-tooltip-footer"><em>${escapeHtml(response.error)}</em>${upgradeHint}${usageFooter}</p></div>`
+              );
+            }
+            return;
+          }
+
+          // Fallback if summary fails
+          if (dataUrl) {
+            showTooltip(
+              target,
+              `<div>${baseContent}<img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview" /></div>`
+            );
+          } else {
+            showTooltip(
+              target,
+              `<div>${baseContent}<p class="ai-tooltip-footer"><em>Summary unavailable. Click to interact.</em></p></div>`
+            );
+          }
+        }
+      );
     })().catch((error: unknown) => {
       const message = error instanceof Error ? error.message : 'Unexpected error occurred.';
-      // Still show button info even on error
-      if (isLink && href) {
-        showTooltip(
-          target,
-          `<div><p><strong>Link:</strong> ${escapeHtml(buttonText)}</p><p class="ai-tooltip-url">${escapeHtml(href)}</p><p class="ai-tooltip-footer"><em>Error: ${escapeHtml(message)}</em></p></div>`
-        );
-      } else {
-        showTooltip(
-          target,
-          `<div><p><strong>Button:</strong> ${escapeHtml(buttonText)}</p><p class="ai-tooltip-footer"><em>Error: ${escapeHtml(message)}</em></p></div>`
-        );
-      }
+      const baseContent =
+        isLink && href
+          ? `<p><strong>Link:</strong> ${escapeHtml(buttonText)}</p><p class="ai-tooltip-url">${escapeHtml(href)}</p>`
+          : `<p><strong>Button:</strong> ${escapeHtml(buttonText)}</p>`;
+      showTooltip(
+        target,
+        `<div>${baseContent}<p class="ai-tooltip-footer"><em>Error: ${escapeHtml(message)}</em></p></div>`
+      );
     });
   }, HOVER_DELAY);
 }
