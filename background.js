@@ -269,11 +269,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Placeholder for context menu creation (for "Summarize with AI" right-click)
-chrome.contextMenus.create({
-  id: 'summarizeWithAI',
-  title: 'Summarize with AI',
-  contexts: ['selection']
+// Context menu creation (for "Summarize with AI" right-click)
+// Remove existing menu item first to avoid duplicate ID errors on reload
+chrome.contextMenus.removeAll(() => {
+  chrome.contextMenus.create({
+    id: 'summarizeWithAI',
+    title: 'Summarize with AI',
+    contexts: ['selection']
+  });
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
