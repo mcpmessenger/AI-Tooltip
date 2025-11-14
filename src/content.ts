@@ -395,9 +395,20 @@ function scheduleImageHover(target: HTMLImageElement): void {
 
 function schedulePreviewHover(target: HTMLElement, previewKey: string): void {
   const label = getElementLabel(target);
+  const isLink = target instanceof HTMLAnchorElement;
+  const href = isLink ? (target as HTMLAnchorElement).href : null;
+  const buttonText = target.textContent?.trim() || label || target.tagName.toLowerCase();
 
   hoverTimeout = window.setTimeout(() => {
-    showTooltip(target, '<p>Capturing preview...</p>', true);
+    // Show button info immediately while attempting capture
+    let tooltipContent = '';
+    if (isLink && href) {
+      tooltipContent = `<p><strong>Link:</strong> ${escapeHtml(buttonText)}</p><p class="ai-tooltip-url">${escapeHtml(href)}</p>`;
+    } else {
+      tooltipContent = `<p><strong>Button:</strong> ${escapeHtml(buttonText)}</p>`;
+    }
+
+    showTooltip(target, tooltipContent + '<p><em>Capturing preview...</em></p>', true);
 
     void (async () => {
       const dataUrl = await getOrCapturePreview(previewKey);
@@ -407,21 +418,40 @@ function schedulePreviewHover(target: HTMLElement, previewKey: string): void {
       }
 
       if (dataUrl) {
-        const title = label ? escapeHtml(label) : target.tagName.toLowerCase();
+        const title = label ? escapeHtml(label) : buttonText;
         showTooltip(
           target,
-          `<div><p><strong>Preview:</strong> ${title}</p><img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview for ${title}" /></div>`
+          `<div><p><strong>Preview:</strong> ${escapeHtml(title)}</p><img src="${dataUrl}" class="ai-tooltip-preview" alt="Preview for ${escapeHtml(title)}" /></div>`
         );
         return;
       }
 
-      showTooltip(
-        target,
-        `<p><strong>Preview unavailable.</strong></p><p>Interact with the element to capture a fresh preview.</p>`
-      );
+      // Fallback: show button/link info without screenshot
+      if (isLink && href) {
+        showTooltip(
+          target,
+          `<div><p><strong>Link:</strong> ${escapeHtml(buttonText)}</p><p class="ai-tooltip-url">${escapeHtml(href)}</p><p class="ai-tooltip-footer"><em>Screenshot capture unavailable. Click to navigate.</em></p></div>`
+        );
+      } else {
+        showTooltip(
+          target,
+          `<div><p><strong>Button:</strong> ${escapeHtml(buttonText)}</p><p class="ai-tooltip-footer"><em>Screenshot capture unavailable. Click to interact.</em></p></div>`
+        );
+      }
     })().catch((error: unknown) => {
       const message = error instanceof Error ? error.message : 'Unexpected error occurred.';
-      showTooltip(target, `<p><strong>Error:</strong></p><p>${escapeHtml(message)}</p>`);
+      // Still show button info even on error
+      if (isLink && href) {
+        showTooltip(
+          target,
+          `<div><p><strong>Link:</strong> ${escapeHtml(buttonText)}</p><p class="ai-tooltip-url">${escapeHtml(href)}</p><p class="ai-tooltip-footer"><em>Error: ${escapeHtml(message)}</em></p></div>`
+        );
+      } else {
+        showTooltip(
+          target,
+          `<div><p><strong>Button:</strong> ${escapeHtml(buttonText)}</p><p class="ai-tooltip-footer"><em>Error: ${escapeHtml(message)}</em></p></div>`
+        );
+      }
     });
   }, HOVER_DELAY);
 }
@@ -464,10 +494,7 @@ function scheduleTextHover(target: HTMLElement, text: string): void {
 
           if (chrome.runtime.lastError) {
             const errorMessage = chrome.runtime.lastError.message || 'Unknown error occurred.';
-            showTooltip(
-              target,
-              `<p><strong>Error:</strong></p><p>${escapeHtml(errorMessage)}</p>`
-            );
+            showTooltip(target, `<p><strong>Error:</strong></p><p>${escapeHtml(errorMessage)}</p>`);
             return;
           }
 
