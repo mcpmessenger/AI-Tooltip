@@ -61,6 +61,8 @@ let bubbleIsDragging = false;
 let bubbleDragStart = { x: 0, y: 0 };
 let recognition: SpeechRecognition | null = null;
 let isListening = false;
+let lastToggleTime = 0;
+const TOGGLE_DEBOUNCE_MS = 200;
 
 const CHAT_STORAGE_KEY = 'ai-tooltip-chat-history';
 const MAX_MESSAGES = 50; // Keep last 50 messages
@@ -133,6 +135,11 @@ function createChatBubble(): void {
   if (header) {
     header.addEventListener('mousedown', startDrag as EventListener);
   }
+
+  // Prevent clicks inside panel from closing it
+  chatPanel.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
 
   // Initialize voice recognition
   initializeVoiceRecognition();
@@ -269,8 +276,11 @@ function stopBubbleDrag(e: MouseEvent): void {
   document.removeEventListener('mouseup', stopBubbleDrag);
 
   // If it wasn't a drag, treat it as a click
+  // Use setTimeout to prevent immediate click conflicts
   if (!wasDragging) {
-    toggleChat();
+    setTimeout(() => {
+      toggleChat();
+    }, 10);
   }
 }
 
@@ -305,10 +315,25 @@ function stopDrag(): void {
 }
 
 function toggleChat(): void {
+  const now = Date.now();
+  // Prevent rapid toggling
+  if (now - lastToggleTime < TOGGLE_DEBOUNCE_MS) {
+    return;
+  }
+  lastToggleTime = now;
+
   isOpen = !isOpen;
   if (chatPanel && chatBubble) {
     if (isOpen) {
       chatPanel.classList.add('open');
+      // Position panel near bubble but offset to avoid overlap
+      const bubbleRect = chatBubble.getBoundingClientRect();
+      if (!chatPanel.style.left || chatPanel.style.left === 'auto') {
+        chatPanel.style.left = `${bubbleRect.left - 350}px`;
+        chatPanel.style.top = `${bubbleRect.top}px`;
+        chatPanel.style.right = 'auto';
+        chatPanel.style.bottom = 'auto';
+      }
       scrollToBottom();
     } else {
       chatPanel.classList.remove('open');
