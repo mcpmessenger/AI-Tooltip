@@ -308,6 +308,20 @@ function toggleChat(): void {
   isOpen = !isOpen;
   if (chatPanel && chatBubble) {
     if (isOpen) {
+      // Position panel near bubble - override CSS bottom/right
+      const bubbleRect = chatBubble.getBoundingClientRect();
+      // Calculate position relative to viewport
+      const leftPos = Math.max(20, bubbleRect.left - 350); // At least 20px from left edge
+      const topPos = Math.max(20, bubbleRect.top); // At least 20px from top
+      
+      chatPanel.style.position = 'fixed';
+      chatPanel.style.left = `${leftPos}px`;
+      chatPanel.style.top = `${topPos}px`;
+      chatPanel.style.right = 'auto';
+      chatPanel.style.bottom = 'auto';
+      
+      console.log('[Chat] Panel positioned at', { left: leftPos, top: topPos, bubbleRect });
+      
       chatPanel.classList.add('open');
       chatBubble.classList.add('hidden');
       scrollToBottom();

@@ -40,8 +40,7 @@
 
 .ai-chat-panel {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  /* bottom and right removed - positioned dynamically via JavaScript */
   width: 400px;
   max-width: calc(100vw - 40px);
   max-height: 600px;
