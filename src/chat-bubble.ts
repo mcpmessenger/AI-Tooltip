@@ -63,6 +63,7 @@ let recognition: SpeechRecognition | null = null;
 let isListening = false;
 let lastToggleTime = 0;
 let lastOpenTime = 0;
+let isDarkMode = false;
 const TOGGLE_DEBOUNCE_MS = 200;
 const MIN_OPEN_DURATION_MS = 300; // Panel must stay open for at least 300ms
 
@@ -95,8 +96,12 @@ function createChatBubble(): void {
         <img src="${chrome.runtime.getURL('icons/glippy.png')}" alt="AI Assistant" class="ai-chat-header-icon" />
         <span>AI Assistant</span>
       </div>
-      <button class="ai-chat-close" aria-label="Close chat">×</button>
+      <div class="ai-chat-header-actions">
+        <button class="ai-chat-theme-toggle" id="ai-chat-theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">🌙</button>
+        <button class="ai-chat-close" aria-label="Close chat">×</button>
+      </div>
     </div>
+    <div class="ai-chat-usage" id="ai-chat-usage"></div>
     <div class="ai-chat-messages" id="ai-chat-messages"></div>
     <div class="ai-chat-input-container">
       <button class="ai-chat-voice-btn" id="ai-chat-voice-btn" aria-label="Voice input" title="Voice input">
@@ -121,8 +126,15 @@ function createChatBubble(): void {
   // Make bubble draggable
   chatBubble.addEventListener('mousedown', startBubbleDrag);
   chatPanel.querySelector('.ai-chat-close')?.addEventListener('click', toggleChat);
+  chatPanel.querySelector('#ai-chat-theme-toggle')?.addEventListener('click', toggleDarkMode);
   chatPanel.querySelector('#ai-chat-send')?.addEventListener('click', sendMessage);
   chatPanel.querySelector('#ai-chat-voice-btn')?.addEventListener('click', toggleVoiceInput);
+  
+  // Load dark mode preference
+  loadDarkModePreference();
+  
+  // Load and display usage info
+  loadUsageInfo();
 
   const input = chatPanel.querySelector('#ai-chat-input') as HTMLTextAreaElement;
   input?.addEventListener('keydown', (e) => {
@@ -141,6 +153,18 @@ function createChatBubble(): void {
   // Prevent clicks inside panel from closing it
   chatPanel.addEventListener('click', (e) => {
     e.stopPropagation();
+  });
+  
+  // Prevent document clicks from closing panel (only close button should close it)
+  document.addEventListener('click', (e) => {
+    if (isOpen && chatPanel && chatBubble) {
+      const target = e.target as HTMLElement;
+      // Only close if clicking outside both panel and bubble
+      if (!chatPanel.contains(target) && !chatBubble.contains(target)) {
+        // Don't auto-close - user must use close button
+        // This prevents accidental closes
+      }
+    }
   });
 
   // Initialize voice recognition
@@ -280,13 +304,11 @@ function stopBubbleDrag(e: MouseEvent): void {
   e.stopPropagation();
 
   // If it wasn't a drag, treat it as a click
-  // Use requestAnimationFrame to ensure DOM is ready
+  // Use setTimeout to ensure all events have settled
   if (!wasDragging) {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        toggleChat();
-      });
-    });
+    setTimeout(() => {
+      toggleChat();
+    }, 50);
   }
 }
 
@@ -327,11 +349,6 @@ function toggleChat(): void {
     return;
   }
   
-  // Prevent closing if panel was just opened
-  if (isOpen && now - lastOpenTime < MIN_OPEN_DURATION_MS) {
-    return;
-  }
-  
   lastToggleTime = now;
 
   isOpen = !isOpen;
@@ -342,8 +359,9 @@ function toggleChat(): void {
       if (!document.body.contains(chatPanel)) {
         document.body.appendChild(chatPanel);
       }
-      // Force display
+      // Force display and visibility
       chatPanel.style.display = 'flex';
+      chatPanel.style.visibility = 'visible';
       chatPanel.classList.add('open');
       // Position panel near bubble but offset to avoid overlap
       const bubbleRect = chatBubble.getBoundingClientRect();
@@ -353,14 +371,16 @@ function toggleChat(): void {
         chatPanel.style.right = 'auto';
         chatPanel.style.bottom = 'auto';
       }
-      // Double-check it stays open after a brief delay
-      setTimeout(() => {
+      // Force it to stay open
+      requestAnimationFrame(() => {
         if (chatPanel && isOpen) {
           chatPanel.classList.add('open');
           chatPanel.style.display = 'flex';
+          chatPanel.style.visibility = 'visible';
         }
-      }, 50);
+      });
       scrollToBottom();
+      loadUsageInfo(); // Refresh usage when opening
     } else {
       chatPanel.classList.remove('open');
     }
@@ -375,7 +395,7 @@ function scrollToBottom(): void {
   }
 }
 
-function addMessage(role: 'user' | 'assistant', content: string): void {
+function addMessage(role: 'user' | 'assistant', content: string, isHtml = false): void {
   const message: ChatMessage = {
     role,
     content,
@@ -388,21 +408,24 @@ function addMessage(role: 'user' | 'assistant', content: string): void {
     messages = messages.slice(-MAX_MESSAGES);
   }
 
-  renderMessages();
+  renderMessages(isHtml);
   saveChatHistory();
   scrollToBottom();
 }
 
-function renderMessages(): void {
+function renderMessages(allowHtml = false): void {
   const messagesEl = document.getElementById('ai-chat-messages');
   if (!messagesEl) {
     return;
   }
 
   messagesEl.innerHTML = messages
-    .map((msg) => {
+    .map((msg, index) => {
       const className = msg.role === 'user' ? 'user-message' : 'assistant-message';
-      return `<div class="ai-chat-message ${className}">${escapeHtml(msg.content)}</div>`;
+      const content = allowHtml && index === messages.length - 1 && msg.content.includes('<span') 
+        ? msg.content 
+        : escapeHtml(msg.content);
+      return `<div class="ai-chat-message ${className}">${content}</div>`;
     })
     .join('');
 
@@ -430,8 +453,8 @@ async function sendMessage(): Promise<void> {
   // Add user message
   addMessage('user', userMessage);
 
-  // Show loading
-  addMessage('assistant', 'Thinking...');
+  // Show loading with spinner
+  addMessage('assistant', '<span class="loading-spinner-inline"></span> Thinking...', true);
   const loadingIndex = messages.length - 1;
 
   try {
@@ -451,15 +474,20 @@ async function sendMessage(): Promise<void> {
           }))
         }
       },
-      (response?: { success?: boolean; result?: string; error?: string }) => {
+      (response?: { success?: boolean; result?: string; error?: string; usageInfo?: any }) => {
         // Remove loading message
-        if (messages[loadingIndex]?.content === 'Thinking...') {
+        if (messages[loadingIndex]?.content.includes('Thinking...')) {
           messages.splice(loadingIndex, 1);
         }
 
         if (chrome.runtime.lastError) {
           addMessage('assistant', `Error: ${chrome.runtime.lastError.message}`);
           return;
+        }
+
+        // Update usage info if provided
+        if (response?.usageInfo) {
+          updateUsageDisplay(response.usageInfo);
         }
 
         if (response?.success && response.result) {
@@ -516,6 +544,86 @@ function saveChatHistory(): void {
       console.warn('Failed to save chat history:', chrome.runtime.lastError);
     }
   });
+}
+
+function toggleDarkMode(): void {
+  isDarkMode = !isDarkMode;
+  if (chatPanel) {
+    if (isDarkMode) {
+      chatPanel.classList.add('dark-mode');
+    } else {
+      chatPanel.classList.remove('dark-mode');
+    }
+    const themeToggle = document.getElementById('ai-chat-theme-toggle');
+    if (themeToggle) {
+      themeToggle.textContent = isDarkMode ? '☀️' : '🌙';
+    }
+  }
+  // Save preference
+  chrome.storage.local.set({ 'ai-chat-dark-mode': isDarkMode }, () => {
+    if (chrome.runtime.lastError) {
+      console.warn('Failed to save dark mode preference:', chrome.runtime.lastError);
+    }
+  });
+}
+
+function loadDarkModePreference(): void {
+  chrome.storage.local.get(['ai-chat-dark-mode'], (items) => {
+    if (chrome.runtime.lastError) {
+      console.warn('Failed to load dark mode preference:', chrome.runtime.lastError);
+      return;
+    }
+    isDarkMode = Boolean(items['ai-chat-dark-mode']);
+    if (chatPanel) {
+      if (isDarkMode) {
+        chatPanel.classList.add('dark-mode');
+      }
+      const themeToggle = document.getElementById('ai-chat-theme-toggle');
+      if (themeToggle) {
+        themeToggle.textContent = isDarkMode ? '☀️' : '🌙';
+      }
+    }
+  });
+}
+
+function loadUsageInfo(): void {
+  // Request usage info from background
+  chrome.runtime.sendMessage({ action: 'getUsageInfo' }, (response) => {
+    if (chrome.runtime.lastError) {
+      console.warn('Failed to get usage info:', chrome.runtime.lastError);
+      // Fallback to storage
+      chrome.storage.sync.get(['freeTooltipsUsed', 'subscriptionStatus', 'llmApiKey'], (data) => {
+        updateUsageDisplay({
+          plan: data.subscriptionStatus || 'free',
+          freeTooltipsUsed: Number.isFinite(data.freeTooltipsUsed) ? data.freeTooltipsUsed : 0,
+          freeTooltipsRemaining: 0,
+          freeTierLimit: 1000
+        });
+      });
+      return;
+    }
+    if (response && response.usageInfo) {
+      updateUsageDisplay(response.usageInfo);
+    }
+  });
+}
+
+function updateUsageDisplay(usageInfo: any): void {
+  const usageEl = document.getElementById('ai-chat-usage');
+  if (!usageEl) {
+    return;
+  }
+
+  const { plan, freeTooltipsUsed = 0, freeTooltipsRemaining = 0, freeTierLimit = 1000 } = usageInfo;
+  
+  if (plan === 'paid' || plan === 'custom') {
+    usageEl.textContent = '✨ Unlimited tooltips enabled';
+    usageEl.className = 'ai-chat-usage unlimited';
+  } else {
+    const remaining = Math.max(freeTierLimit - freeTooltipsUsed, 0);
+    usageEl.textContent = `${remaining} of ${freeTierLimit} free tooltips remaining`;
+    usageEl.className = 'ai-chat-usage free';
+  }
 }
 
 // Initialize on load

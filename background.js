@@ -193,7 +193,13 @@ async function handleChatMessage(message) {
 
   chatMessage.data = { text: prompt };
 
-  return handleRequest(chatMessage);
+  const result = await handleRequest(chatMessage);
+  // Ensure usageInfo is included in response
+  if (result && !result.usageInfo) {
+    const apiResolution = await resolveUsageAndApiKey('summarizeText');
+    result.usageInfo = apiResolution.usageInfo;
+  }
+  return result;
 }
 
 async function handleRequest(message) {
@@ -267,6 +273,13 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 // Message handling from content scripts and popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'getUsageInfo') {
+    resolveUsageAndApiKey('summarizeText').then((apiResolution) => {
+      sendResponse({ usageInfo: apiResolution.usageInfo });
+    });
+    return true; // Async response
+  }
+  
   if (message.action === 'capturePreview') {
     const windowId =
       sender.tab && typeof sender.tab.windowId === 'number' ? sender.tab.windowId : undefined;

@@ -15,12 +15,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const FREE_TIER_LIMIT = typeof CONFIG.FREE_TIER_LIMIT === 'number' ? CONFIG.FREE_TIER_LIMIT : 100;
   const GOOGLE_CLIENT_ID = CONFIG.GOOGLE_OAUTH_CLIENT_ID;
 
+  const usageSection = document.getElementById('usage-section');
   const renderUsage = (data) => {
     const subscriptionStatus = data.subscriptionStatus || 'free';
     const hasCustomKey = Boolean(data.llmApiKey);
     if (subscriptionStatus === 'paid' || hasCustomKey || subscriptionStatus === 'custom') {
-      usageCount.textContent = 'Unlimited tooltips enabled.';
+      usageCount.textContent = '✨ Unlimited tooltips enabled.';
+      if (usageSection) {
+        usageSection.classList.add('unlimited');
+      }
       return;
+    }
+    if (usageSection) {
+      usageSection.classList.remove('unlimited');
     }
     const used = Number.isFinite(data.freeTooltipsUsed) ? data.freeTooltipsUsed : 0;
     const remaining = Math.max(FREE_TIER_LIMIT - used, 0);
@@ -32,10 +39,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.llmApiKey) {
         apiKeyInput.value = data.llmApiKey;
         statusMessage.textContent = 'API Key loaded.';
-        statusMessage.style.color = '#555';
+        statusMessage.className = '';
       } else {
         statusMessage.textContent = 'Use the shared free tier or add your own LLM API key.';
-        statusMessage.style.color = '#555';
+        statusMessage.className = '';
       }
       renderUsage(data);
     });
@@ -50,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const startGoogleUpgrade = () => {
     if (!GOOGLE_CLIENT_ID) {
       statusMessage.textContent = 'Google OAuth is not configured. Update config.js.';
-      statusMessage.style.color = 'red';
+      statusMessage.className = 'error';
       return;
     }
 
@@ -73,20 +80,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (chrome.runtime.lastError) {
           statusMessage.textContent = `Google sign-in failed: ${chrome.runtime.lastError.message}`;
-          statusMessage.style.color = 'red';
+          statusMessage.className = 'error';
           return;
         }
 
         if (!redirectUrl || redirectUrl.indexOf('access_token=') === -1) {
           statusMessage.textContent = 'Google sign-in did not return an access token.';
-          statusMessage.style.color = 'red';
+          statusMessage.className = 'error';
           return;
         }
 
         await chrome.storage.sync.set({ subscriptionStatus: 'paid' });
         statusMessage.textContent =
           'Upgrade successful! Add your personal API key for premium usage.';
-        statusMessage.style.color = 'green';
+        statusMessage.className = 'success';
         loadState();
       }
     );
@@ -100,16 +107,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (apiKey) {
       chrome.storage.sync.set({ llmApiKey: apiKey, subscriptionStatus: 'custom' }, () => {
         statusMessage.textContent = 'API Key saved successfully!';
-        statusMessage.style.color = 'green';
+        statusMessage.className = 'success';
         setTimeout(() => {
-          statusMessage.style.color = '#555';
+          statusMessage.className = '';
           statusMessage.textContent = 'API Key loaded.';
         }, 2000);
         loadState();
       });
     } else {
       statusMessage.textContent = 'API Key cannot be empty.';
-      statusMessage.style.color = 'red';
+      statusMessage.className = 'error';
     }
   });
 
