@@ -165,6 +165,37 @@ async function resolveUsageAndApiKey(action) {
   };
 }
 
+async function handleChatMessage(message) {
+  const { data } = message;
+  if (!data || !data.message) {
+    return {
+      success: false,
+      error: 'Missing message content.'
+    };
+  }
+
+  // Use summarizeText action for chat (same LLM pipeline)
+  const chatMessage = message;
+  chatMessage.action = 'summarizeText';
+
+  // Build context-aware prompt
+  const context = data.context || '';
+  const history = data.history || [];
+
+  let prompt = `You are a helpful AI assistant helping users understand web pages. `;
+  if (context) {
+    prompt += `Current page context:\n${context}\n\n`;
+  }
+  if (history.length > 0) {
+    prompt += `Recent conversation:\n${history.map((h) => `${h.role}: ${h.content}`).join('\n')}\n\n`;
+  }
+  prompt += `User question: ${data.message}\n\nPlease provide a helpful, concise answer.`;
+
+  chatMessage.data = { text: prompt };
+
+  return handleRequest(chatMessage);
+}
+
 async function handleRequest(message) {
   const { action } = message;
   const apiResolution = await resolveUsageAndApiKey(action);
@@ -249,6 +280,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       sendResponse({ success: true, dataUrl });
     });
+    return true;
+  }
+
+  if (message.action === 'chatMessage') {
+    console.log('Chat message received');
+    handleChatMessage(message)
+      .then(sendResponse)
+      .catch((error) => {
+        console.error('Failed to handle chat message:', error);
+        sendResponse({
+          success: false,
+          error: error.message || 'Unexpected error occurred.'
+        });
+      });
     return true;
   }
 

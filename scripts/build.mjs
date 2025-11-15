@@ -28,7 +28,7 @@ async function buildScripts() {
   console.log('[build] Bundling TypeScript sources...');
   await esbuild.build({
     entryPoints: [resolve(rootDir, 'src/content.ts')],
-    bundle: false,
+    bundle: true,
     outfile: resolve(distDir, 'content.js'),
     target: 'es2021',
     platform: 'browser',
@@ -47,6 +47,7 @@ async function main() {
     'config.sample.js',
     'config.js',
     'content.css',
+    'chat-bubble.css',
     'icons',
     'lib',
     'offscreen.html',
