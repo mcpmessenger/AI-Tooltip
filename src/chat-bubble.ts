@@ -124,8 +124,18 @@ function createChatBubble(): void {
   loadChatHistory();
 
   // Event listeners
-  // Make bubble draggable
+  // Make bubble draggable AND clickable
   chatBubble.addEventListener('mousedown', startBubbleDrag);
+  // Also add direct click handler as backup
+  chatBubble.addEventListener('click', (e) => {
+    // Only trigger if it wasn't a drag (handled by stopBubbleDrag)
+    if (!bubbleIsDragging) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('[Chat] Direct click on bubble');
+      toggleChat();
+    }
+  });
   chatPanel.querySelector('.ai-chat-close')?.addEventListener('click', toggleChat);
   chatPanel.querySelector('#ai-chat-theme-toggle')?.addEventListener('click', toggleDarkMode);
   chatPanel.querySelector('#ai-chat-send')?.addEventListener('click', sendMessage);

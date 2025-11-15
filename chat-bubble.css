@@ -9,7 +9,7 @@
   background: transparent;
   border: none;
   border-radius: 0;
-  cursor: move;
+  cursor: pointer; /* Show it's clickable */
   box-shadow: none;
   z-index: 2147483646;
   display: flex;
@@ -35,7 +35,12 @@
   width: 60px;
   height: 60px;
   object-fit: contain;
-  pointer-events: none;
+  pointer-events: none; /* Icon itself doesn't capture clicks, bubble container does */
+}
+
+/* Make sure the bubble is clickable */
+.ai-chat-bubble {
+  cursor: pointer; /* Show it's clickable */
 }
 
 .ai-chat-panel {
