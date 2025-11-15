@@ -124,17 +124,13 @@ function createChatBubble(): void {
   loadChatHistory();
 
   // Event listeners
-  // Make bubble draggable AND clickable
+  // Make bubble draggable - click is handled in stopBubbleDrag
   chatBubble.addEventListener('mousedown', startBubbleDrag);
-  // Also add direct click handler as backup
+  // Prevent click event from firing after mousedown/mouseup (to avoid double-toggle)
   chatBubble.addEventListener('click', (e) => {
-    // Only trigger if it wasn't a drag (handled by stopBubbleDrag)
-    if (!bubbleIsDragging) {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log('[Chat] Direct click on bubble');
-      toggleChat();
-    }
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[Chat] Click event prevented (handled by stopBubbleDrag)');
   });
   chatPanel.querySelector('.ai-chat-close')?.addEventListener('click', toggleChat);
   chatPanel.querySelector('#ai-chat-theme-toggle')?.addEventListener('click', toggleDarkMode);
@@ -319,7 +315,10 @@ function stopBubbleDrag(e: MouseEvent): void {
   // If it wasn't a drag, treat it as a click
   // We call toggleChat directly here. The debounce in toggleChat will handle rapid clicks.
   if (!wasDragging) {
+    console.log('[Chat] Click detected (not a drag), toggling chat');
     toggleChat();
+  } else {
+    console.log('[Chat] Drag completed, not toggling');
   }
 }
 
