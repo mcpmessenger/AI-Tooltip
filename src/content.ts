@@ -359,16 +359,6 @@ async function getOrCapturePreview(previewKey: string): Promise<string | null> {
 }
 
 function showTooltip(element: HTMLElement, content: string, isProcessing = false): void {
-  // Don't show tooltips if hovering over chat elements
-  if (
-    element.id === 'ai-chat-bubble' ||
-    element.id === 'ai-chat-panel' ||
-    element.closest('#ai-chat-bubble') ||
-    element.closest('#ai-chat-panel')
-  ) {
-    return;
-  }
-
   removeCurrentTooltip();
   removeFixedSummaryTooltip();
 
@@ -678,16 +668,6 @@ function scheduleTextHover(target: HTMLElement, text: string): void {
 function handleHover(event: MouseEvent): void {
   const { target } = event;
   if (!(target instanceof HTMLElement)) {
-    return;
-  }
-
-  // Ignore chat bubble and chat panel - don't show tooltips on them
-  if (
-    target.id === 'ai-chat-bubble' ||
-    target.id === 'ai-chat-panel' ||
-    target.closest('#ai-chat-bubble') ||
-    target.closest('#ai-chat-panel')
-  ) {
     return;
   }
 
