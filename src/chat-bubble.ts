@@ -306,11 +306,9 @@ function stopBubbleDrag(e: MouseEvent): void {
   e.stopPropagation();
 
   // If it wasn't a drag, treat it as a click
-  // Use setTimeout to ensure all events have settled
+  // We call toggleChat directly here. The debounce in toggleChat will handle rapid clicks.
   if (!wasDragging) {
-    setTimeout(() => {
-      toggleChat();
-    }, 50);
+    toggleChat();
   }
 }
 
@@ -357,50 +355,50 @@ function toggleChat(): void {
   if (chatPanel && chatBubble) {
     if (isOpen) {
       lastOpenTime = now;
+
       // Ensure panel is in DOM
       if (!document.body.contains(chatPanel)) {
         document.body.appendChild(chatPanel);
       }
-      // Force display and visibility - use multiple methods to ensure it stays open
-      chatPanel.style.display = 'flex';
-      chatPanel.style.visibility = 'visible';
-      chatPanel.style.opacity = '1';
-      chatPanel.style.pointerEvents = 'all';
-      chatPanel.classList.add('open');
-      // Position panel near bubble but offset to avoid overlap
-      const bubbleRect = chatBubble.getBoundingClientRect();
+
+      // Set initial position if not set (or reset)
       if (!chatPanel.style.left || chatPanel.style.left === 'auto') {
+        const bubbleRect = chatBubble.getBoundingClientRect();
         chatPanel.style.left = `${bubbleRect.left - 350}px`;
         chatPanel.style.top = `${bubbleRect.top}px`;
         chatPanel.style.right = 'auto';
         chatPanel.style.bottom = 'auto';
       }
-      // Force it to stay open with multiple checks
+      
+      // Use CSS class for visibility and state management
+      chatPanel.classList.add('open');
+      
+      // Use a single requestAnimationFrame to ensure CSS transition starts correctly
       requestAnimationFrame(() => {
         if (chatPanel && isOpen) {
-          chatPanel.classList.add('open');
           chatPanel.style.display = 'flex';
           chatPanel.style.visibility = 'visible';
           chatPanel.style.opacity = '1';
           chatPanel.style.pointerEvents = 'all';
         }
       });
-      // Double-check after a brief delay
-      setTimeout(() => {
-        if (chatPanel && isOpen) {
-          chatPanel.classList.add('open');
-          chatPanel.style.display = 'flex';
-          chatPanel.style.visibility = 'visible';
-          chatPanel.style.opacity = '1';
-          chatPanel.style.pointerEvents = 'all';
-        }
-      }, 100);
       scrollToBottom();
       loadUsageInfo(); // Refresh usage when opening
     } else {
+      // Closing the panel
+      // Use CSS class for transition
       chatPanel.classList.remove('open');
-      chatPanel.style.opacity = '0';
-      chatPanel.style.pointerEvents = 'none';
+      
+      // After transition, hide it completely to prevent interference
+      // The transition duration is 0.3s (300ms) from chat-bubble.css
+      setTimeout(() => {
+        if (chatPanel && !isOpen) {
+          chatPanel.style.display = 'none';
+          chatPanel.style.visibility = 'hidden';
+          chatPanel.style.opacity = '0';
+          chatPanel.style.pointerEvents = 'none';
+        }
+      }, 350); // Wait slightly longer than the transition duration
     }
     // Paperclip icon always stays visible
   }
