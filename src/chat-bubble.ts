@@ -309,12 +309,11 @@ function toggleChat(): void {
   if (chatPanel && chatBubble) {
     if (isOpen) {
       chatPanel.classList.add('open');
-      chatBubble.classList.add('hidden');
       scrollToBottom();
     } else {
       chatPanel.classList.remove('open');
-      chatBubble.classList.remove('hidden');
     }
+    // Paperclip icon always stays visible
   }
 }
 
