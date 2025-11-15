@@ -315,7 +315,7 @@ function stopBubbleDrag(e: MouseEvent): void {
   // If it wasn't a drag, treat it as a click
   // We call toggleChat directly here. The debounce in toggleChat will handle rapid clicks.
   if (!wasDragging) {
-    console.log('[Chat] Click detected (not a drag), toggling chat');
+    console.error('[Chat] 🖱️ CLICK DETECTED (not a drag), toggling chat');
     toggleChat();
   } else {
     console.log('[Chat] Drag completed, not toggling');
@@ -378,11 +378,13 @@ function toggleChat(): void {
     return;
   }
   
-  console.log('[Chat] Toggling chat', { 
+  console.error('[Chat] ⚠️ TOGGLING CHAT', { 
     currentState: isOpen, 
     willBe: !isOpen,
     now,
-    isLocked 
+    isLocked,
+    lastToggleTime,
+    timeSinceLastToggle: now - lastToggleTime
   });
   
   lastToggleTime = now;
@@ -391,7 +393,7 @@ function toggleChat(): void {
   
   if (chatPanel && chatBubble) {
     if (isOpen) {
-      console.log('[Chat] Opening panel');
+      console.error('[Chat] ✅ OPENING PANEL');
       lastOpenTime = now;
       isLocked = true; // Lock to prevent immediate closing
       
@@ -443,10 +445,10 @@ function toggleChat(): void {
       scrollToBottom();
       loadUsageInfo(); // Refresh usage when opening
     } else {
-      console.log('[Chat] Closing panel');
+      console.error('[Chat] ❌ CLOSING PANEL', { isLocked, lastOpenTime, timeSinceOpen: now - lastOpenTime });
       // Closing the panel - only if not locked
       if (isLocked) {
-        console.warn('[Chat] Attempted to close locked panel, ignoring');
+        console.error('[Chat] 🚫 BLOCKED: Attempted to close locked panel, ignoring');
         isOpen = true; // Revert state
         return;
       }
