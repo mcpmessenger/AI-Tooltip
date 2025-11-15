@@ -6,22 +6,25 @@
   right: 20px;
   width: 60px;
   height: 60px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: move;
+  box-shadow: none;
   z-index: 2147483646;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: transform 0.2s ease;
+  user-select: none;
 }
 
 .ai-chat-bubble:hover {
   transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.ai-chat-bubble:active {
+  cursor: grabbing;
 }
 
 .ai-chat-bubble.hidden {
@@ -29,9 +32,10 @@
 }
 
 .ai-chat-icon {
-  width: 40px;
-  height: 40px;
+  width: 60px;
+  height: 60px;
   object-fit: contain;
+  pointer-events: none;
 }
 
 .ai-chat-panel {

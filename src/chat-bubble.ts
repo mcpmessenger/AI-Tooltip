@@ -56,6 +56,9 @@ let isOpen = false;
 let messages: ChatMessage[] = [];
 let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
+let bubbleDragOffset = { x: 0, y: 0 };
+let bubbleIsDragging = false;
+let bubbleDragStart = { x: 0, y: 0 };
 let recognition: SpeechRecognition | null = null;
 let isListening = false;
 
@@ -111,7 +114,8 @@ function createChatBubble(): void {
   loadChatHistory();
 
   // Event listeners
-  chatBubble.addEventListener('click', toggleChat);
+  // Make bubble draggable
+  chatBubble.addEventListener('mousedown', startBubbleDrag);
   chatPanel.querySelector('.ai-chat-close')?.addEventListener('click', toggleChat);
   chatPanel.querySelector('#ai-chat-send')?.addEventListener('click', sendMessage);
   chatPanel.querySelector('#ai-chat-voice-btn')?.addEventListener('click', toggleVoiceInput);
@@ -218,6 +222,55 @@ function updateVoiceStatus(message: string, isActive: boolean): void {
   if (statusEl) {
     statusEl.textContent = message;
     statusEl.className = `ai-chat-voice-status ${isActive ? 'active' : ''}`;
+  }
+}
+
+function startBubbleDrag(e: MouseEvent): void {
+  if (!chatBubble) {
+    return;
+  }
+  bubbleIsDragging = false;
+  bubbleDragStart.x = e.clientX;
+  bubbleDragStart.y = e.clientY;
+  const rect = chatBubble.getBoundingClientRect();
+  bubbleDragOffset.x = e.clientX - rect.left;
+  bubbleDragOffset.y = e.clientY - rect.top;
+
+  document.addEventListener('mousemove', onBubbleDrag);
+  document.addEventListener('mouseup', stopBubbleDrag);
+  e.preventDefault();
+  e.stopPropagation();
+}
+
+function onBubbleDrag(e: MouseEvent): void {
+  if (!chatBubble) {
+    return;
+  }
+  const deltaX = Math.abs(e.clientX - bubbleDragStart.x);
+  const deltaY = Math.abs(e.clientY - bubbleDragStart.y);
+
+  // If moved more than 5px, consider it a drag
+  if (deltaX > 5 || deltaY > 5) {
+    bubbleIsDragging = true;
+  }
+
+  if (bubbleIsDragging) {
+    chatBubble.style.left = `${e.clientX - bubbleDragOffset.x}px`;
+    chatBubble.style.top = `${e.clientY - bubbleDragOffset.y}px`;
+    chatBubble.style.right = 'auto';
+    chatBubble.style.bottom = 'auto';
+  }
+}
+
+function stopBubbleDrag(e: MouseEvent): void {
+  const wasDragging = bubbleIsDragging;
+  bubbleIsDragging = false;
+  document.removeEventListener('mousemove', onBubbleDrag);
+  document.removeEventListener('mouseup', stopBubbleDrag);
+
+  // If it wasn't a drag, treat it as a click
+  if (!wasDragging) {
+    toggleChat();
   }
 }
 
