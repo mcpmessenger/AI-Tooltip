@@ -64,8 +64,9 @@ let isListening = false;
 let lastToggleTime = 0;
 let lastOpenTime = 0;
 let isDarkMode = false;
+let isLocked = false; // Lock to prevent closing immediately after opening
 const TOGGLE_DEBOUNCE_MS = 200;
-const MIN_OPEN_DURATION_MS = 300; // Panel must stay open for at least 300ms
+const MIN_OPEN_DURATION_MS = 500; // Panel must stay open for at least 500ms
 
 const CHAT_STORAGE_KEY = 'ai-tooltip-chat-history';
 const MAX_MESSAGES = 50; // Keep last 50 messages
@@ -344,20 +345,56 @@ function stopDrag(): void {
 
 function toggleChat(): void {
   const now = Date.now();
+  
   // Prevent rapid toggling
   if (now - lastToggleTime < TOGGLE_DEBOUNCE_MS) {
+    console.log('[Chat] Toggle blocked: rapid toggling', { now, lastToggleTime, diff: now - lastToggleTime });
     return;
   }
   
+  // Prevent closing if panel was just opened (lock mechanism)
+  if (!isOpen && isLocked) {
+    console.log('[Chat] Toggle blocked: panel is locked (just opened)');
+    return;
+  }
+  
+  // Prevent closing if minimum open duration hasn't passed
+  if (isOpen && now - lastOpenTime < MIN_OPEN_DURATION_MS) {
+    console.log('[Chat] Toggle blocked: minimum open duration not met', { 
+      now, 
+      lastOpenTime, 
+      diff: now - lastOpenTime,
+      required: MIN_OPEN_DURATION_MS 
+    });
+    return;
+  }
+  
+  console.log('[Chat] Toggling chat', { 
+    currentState: isOpen, 
+    willBe: !isOpen,
+    now,
+    isLocked 
+  });
+  
   lastToggleTime = now;
-
+  const wasOpen = isOpen;
   isOpen = !isOpen;
+  
   if (chatPanel && chatBubble) {
     if (isOpen) {
+      console.log('[Chat] Opening panel');
       lastOpenTime = now;
+      isLocked = true; // Lock to prevent immediate closing
+      
+      // Unlock after minimum duration
+      setTimeout(() => {
+        isLocked = false;
+        console.log('[Chat] Panel unlocked');
+      }, MIN_OPEN_DURATION_MS);
 
       // Ensure panel is in DOM
       if (!document.body.contains(chatPanel)) {
+        console.log('[Chat] Panel not in DOM, appending');
         document.body.appendChild(chatPanel);
       }
 
@@ -368,24 +405,43 @@ function toggleChat(): void {
         chatPanel.style.top = `${bubbleRect.top}px`;
         chatPanel.style.right = 'auto';
         chatPanel.style.bottom = 'auto';
+        console.log('[Chat] Set panel position', { left: chatPanel.style.left, top: chatPanel.style.top });
       }
+      
+      // Force display first, then add class for transition
+      chatPanel.style.display = 'flex';
+      chatPanel.style.visibility = 'visible';
+      chatPanel.style.pointerEvents = 'all';
       
       // Use CSS class for visibility and state management
       chatPanel.classList.add('open');
+      console.log('[Chat] Added open class, panel should be visible');
       
-      // Use a single requestAnimationFrame to ensure CSS transition starts correctly
+      // Double-check after a frame
       requestAnimationFrame(() => {
         if (chatPanel && isOpen) {
           chatPanel.style.display = 'flex';
           chatPanel.style.visibility = 'visible';
           chatPanel.style.opacity = '1';
           chatPanel.style.pointerEvents = 'all';
+          chatPanel.classList.add('open');
+          console.log('[Chat] RequestAnimationFrame: ensured panel is open');
+        } else {
+          console.warn('[Chat] RequestAnimationFrame: panel state changed!', { isOpen, panelExists: !!chatPanel });
         }
       });
+      
       scrollToBottom();
       loadUsageInfo(); // Refresh usage when opening
     } else {
-      // Closing the panel
+      console.log('[Chat] Closing panel');
+      // Closing the panel - only if not locked
+      if (isLocked) {
+        console.warn('[Chat] Attempted to close locked panel, ignoring');
+        isOpen = true; // Revert state
+        return;
+      }
+      
       // Use CSS class for transition
       chatPanel.classList.remove('open');
       
@@ -397,10 +453,13 @@ function toggleChat(): void {
           chatPanel.style.visibility = 'hidden';
           chatPanel.style.opacity = '0';
           chatPanel.style.pointerEvents = 'none';
+          console.log('[Chat] Panel fully hidden after transition');
         }
       }, 350); // Wait slightly longer than the transition duration
     }
     // Paperclip icon always stays visible
+  } else {
+    console.error('[Chat] Missing panel or bubble!', { chatPanel: !!chatPanel, chatBubble: !!chatBubble });
   }
 }
 
