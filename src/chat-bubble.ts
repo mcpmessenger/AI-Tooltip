@@ -93,7 +93,7 @@ function createChatBubble(): void {
     <div class="ai-chat-messages" id="ai-chat-messages"></div>
     <div class="ai-chat-input-container">
       <button class="ai-chat-voice-btn" id="ai-chat-voice-btn" aria-label="Voice input" title="Voice input">
-        🎤
+        Mic
       </button>
       <textarea
         class="ai-chat-input"

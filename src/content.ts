@@ -756,5 +756,5 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   sendResponse({ status: 'Processing started' });
 });
 
-// Initialize chat bubble (side-effect import)
-void import('./chat-bubble');
+// Initialize chat bubble
+import './chat-bubble';
