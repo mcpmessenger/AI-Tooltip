@@ -361,9 +361,11 @@ function toggleChat(): void {
       if (!document.body.contains(chatPanel)) {
         document.body.appendChild(chatPanel);
       }
-      // Force display and visibility
+      // Force display and visibility - use multiple methods to ensure it stays open
       chatPanel.style.display = 'flex';
       chatPanel.style.visibility = 'visible';
+      chatPanel.style.opacity = '1';
+      chatPanel.style.pointerEvents = 'all';
       chatPanel.classList.add('open');
       // Position panel near bubble but offset to avoid overlap
       const bubbleRect = chatBubble.getBoundingClientRect();
@@ -373,18 +375,32 @@ function toggleChat(): void {
         chatPanel.style.right = 'auto';
         chatPanel.style.bottom = 'auto';
       }
-      // Force it to stay open
+      // Force it to stay open with multiple checks
       requestAnimationFrame(() => {
         if (chatPanel && isOpen) {
           chatPanel.classList.add('open');
           chatPanel.style.display = 'flex';
           chatPanel.style.visibility = 'visible';
+          chatPanel.style.opacity = '1';
+          chatPanel.style.pointerEvents = 'all';
         }
       });
+      // Double-check after a brief delay
+      setTimeout(() => {
+        if (chatPanel && isOpen) {
+          chatPanel.classList.add('open');
+          chatPanel.style.display = 'flex';
+          chatPanel.style.visibility = 'visible';
+          chatPanel.style.opacity = '1';
+          chatPanel.style.pointerEvents = 'all';
+        }
+      }, 100);
       scrollToBottom();
       loadUsageInfo(); // Refresh usage when opening
     } else {
       chatPanel.classList.remove('open');
+      chatPanel.style.opacity = '0';
+      chatPanel.style.pointerEvents = 'none';
     }
     // Paperclip icon always stays visible
   }
