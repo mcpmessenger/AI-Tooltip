@@ -62,7 +62,9 @@ let bubbleDragStart = { x: 0, y: 0 };
 let recognition: SpeechRecognition | null = null;
 let isListening = false;
 let lastToggleTime = 0;
+let lastOpenTime = 0;
 const TOGGLE_DEBOUNCE_MS = 200;
+const MIN_OPEN_DURATION_MS = 300; // Panel must stay open for at least 300ms
 
 const CHAT_STORAGE_KEY = 'ai-tooltip-chat-history';
 const MAX_MESSAGES = 50; // Keep last 50 messages
@@ -274,13 +276,17 @@ function stopBubbleDrag(e: MouseEvent): void {
   bubbleIsDragging = false;
   document.removeEventListener('mousemove', onBubbleDrag);
   document.removeEventListener('mouseup', stopBubbleDrag);
+  e.preventDefault();
+  e.stopPropagation();
 
   // If it wasn't a drag, treat it as a click
-  // Use setTimeout to prevent immediate click conflicts
+  // Use requestAnimationFrame to ensure DOM is ready
   if (!wasDragging) {
-    setTimeout(() => {
-      toggleChat();
-    }, 10);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        toggleChat();
+      });
+    });
   }
 }
 
@@ -320,11 +326,24 @@ function toggleChat(): void {
   if (now - lastToggleTime < TOGGLE_DEBOUNCE_MS) {
     return;
   }
+  
+  // Prevent closing if panel was just opened
+  if (isOpen && now - lastOpenTime < MIN_OPEN_DURATION_MS) {
+    return;
+  }
+  
   lastToggleTime = now;
 
   isOpen = !isOpen;
   if (chatPanel && chatBubble) {
     if (isOpen) {
+      lastOpenTime = now;
+      // Ensure panel is in DOM
+      if (!document.body.contains(chatPanel)) {
+        document.body.appendChild(chatPanel);
+      }
+      // Force display
+      chatPanel.style.display = 'flex';
       chatPanel.classList.add('open');
       // Position panel near bubble but offset to avoid overlap
       const bubbleRect = chatBubble.getBoundingClientRect();
@@ -334,6 +353,13 @@ function toggleChat(): void {
         chatPanel.style.right = 'auto';
         chatPanel.style.bottom = 'auto';
       }
+      // Double-check it stays open after a brief delay
+      setTimeout(() => {
+        if (chatPanel && isOpen) {
+          chatPanel.classList.add('open');
+          chatPanel.style.display = 'flex';
+        }
+      }, 50);
       scrollToBottom();
     } else {
       chatPanel.classList.remove('open');
