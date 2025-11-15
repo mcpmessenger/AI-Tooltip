@@ -155,16 +155,18 @@ function createChatBubble(): void {
     e.stopPropagation();
   });
   
-  // Prevent document clicks from closing panel (only close button should close it)
-  document.addEventListener('click', (e) => {
-    if (isOpen && chatPanel && chatBubble) {
-      const target = e.target as HTMLElement;
-      // Only close if clicking outside both panel and bubble
-      if (!chatPanel.contains(target) && !chatBubble.contains(target)) {
-        // Don't auto-close - user must use close button
-        // This prevents accidental closes
-      }
-    }
+  // Stop all events on bubble and panel to prevent tooltip interference
+  chatBubble.addEventListener('mouseover', (e) => {
+    e.stopPropagation();
+  });
+  chatBubble.addEventListener('mouseout', (e) => {
+    e.stopPropagation();
+  });
+  chatPanel.addEventListener('mouseover', (e) => {
+    e.stopPropagation();
+  });
+  chatPanel.addEventListener('mouseout', (e) => {
+    e.stopPropagation();
   });
 
   // Initialize voice recognition
